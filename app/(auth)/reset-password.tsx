@@ -1,10 +1,11 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import ScreenView from "../../components/ScreenView";
 
 export default function Screen() {
   return (
-    <View style={styles.container}>
+    <ScreenView style={styles.container}>
       <Text style={styles.title}>reset-password</Text>
-    </View>
+    </ScreenView>
   );
 }
 

@@ -1,11 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useTheme } from "../../lib/theme";
+import ScreenView from "../../components/ScreenView";
 
 export default function Screen() {
   const { isDark } = useTheme();
 
   return (
-    <View
+    <ScreenView
       style={[
         styles.container,
         { backgroundColor: isDark ? "#0f0f0f" : "#f2f2f7" },
@@ -17,7 +18,7 @@ export default function Screen() {
       <Text style={[styles.subtitle, { color: isDark ? "#9a9a9a" : "#636366" }]}>
         Sigue tu estado
       </Text>
-    </View>
+    </ScreenView>
   );
 }
 
