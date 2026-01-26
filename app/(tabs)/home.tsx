@@ -1,11 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useTheme } from "../../lib/theme";
+import ScreenView from "../../components/ScreenView";
 
 export default function Screen() {
   const { isDark } = useTheme();
 
   return (
-    <View
+    <ScreenView
       style={[
         styles.container,
         { backgroundColor: isDark ? "#0f0f0f" : "#f2f2f7" },
@@ -18,7 +19,7 @@ export default function Screen() {
         {/* dynamic value from supabase */}
         Bienvenido/a 
       </Text>
-    </View>
+    </ScreenView>
   );
 }
 
