@@ -4,20 +4,26 @@ import { useTheme } from "../../lib/theme";
 
 export default function TabsLayout() {
   const { isDark } = useTheme();
+  const palette = {
+    tabBg: isDark ? "#13171D" : "#F8F2EA",
+    tabBorder: isDark ? "#2A313A" : "#E9DED1",
+    active: isDark ? "#B68A7B" : "#714E43",
+    inactive: isDark ? "#98A2AE" : "#7A828E",
+  };
 
   return (
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: isDark ? "#f5f5f5" : "#111",
-        tabBarInactiveTintColor: isDark ? "#8e8e93" : "#8e8e93",
+        tabBarActiveTintColor: palette.active,
+        tabBarInactiveTintColor: palette.inactive,
         tabBarStyle: {
-          height: 76,
-          paddingBottom: 12,
+          height: 74,
+          paddingBottom: 10,
           paddingTop: 8,
           paddingHorizontal: 12,
-          backgroundColor: isDark ? "#121212" : "#f8f8f8",
-          borderTopColor: isDark ? "#1f1f1f" : "#dcdcdc",
+          backgroundColor: palette.tabBg,
+          borderTopColor: palette.tabBorder,
           borderTopWidth: 1,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },

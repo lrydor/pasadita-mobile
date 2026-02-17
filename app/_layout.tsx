@@ -14,7 +14,22 @@ function AppShell() {
         screenOptions={{
           headerShown: false,
         }}
-      />
+      >
+        <Stack.Screen
+          name="menu/[id]"
+          options={{
+            presentation: "modal",
+            animation: "slide_from_bottom",
+          }}
+        />
+        <Stack.Screen
+          name="checkout/success"
+          options={{
+            presentation: "modal",
+            animation: "fade_from_bottom",
+          }}
+        />
+      </Stack>
     </>
   );
 }

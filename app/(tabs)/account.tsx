@@ -31,6 +31,7 @@ type Order = {
 
 export default function Screen() {
   const { isDark, toggleMode } = useTheme();
+  const brandColor = isDark ? "#B68A7B" : "#714E43";
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -356,7 +357,7 @@ export default function Screen() {
             value={isDark}
             onValueChange={toggleMode}
             thumbColor={isDark ? "#f5f5f5" : "#fff"}
-            trackColor={{ false: "#c7c7cc", true: "#4a4a4a" }}
+            trackColor={{ false: "#c7c7cc", true: brandColor }}
           />
         </View>
         <View
@@ -381,7 +382,7 @@ export default function Screen() {
             value={notificationsEnabled}
             onValueChange={handleNotificationsToggle}
             thumbColor={isDark ? "#f5f5f5" : "#fff"}
-            trackColor={{ false: "#c7c7cc", true: "#4a4a4a" }}
+            trackColor={{ false: "#c7c7cc", true: brandColor }}
           />
         </View>
       </View>
@@ -399,15 +400,13 @@ export default function Screen() {
           disabled={signingOut}
           style={[
             styles.destructiveButton,
-            { borderColor: isDark ? "#3a3a3c" : "#e5e5ea" },
+            {
+              borderColor: signingOut ? (isDark ? "#3a3a3c" : "#d1d1d6") : brandColor,
+              backgroundColor: signingOut ? (isDark ? "#3a3a3c" : "#d1d1d6") : brandColor,
+            },
           ]}
         >
-          <Text
-            style={[
-              styles.destructiveButtonText,
-              { color: signingOut ? "#8e8e93" : "#ff3b30" },
-            ]}
-          >
+          <Text style={[styles.destructiveButtonText, { color: "#fff" }]}>
             {signingOut ? "Saliendo..." : "Cerrar sesion"}
           </Text>
         </Pressable>

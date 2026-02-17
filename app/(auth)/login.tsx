@@ -22,6 +22,7 @@ export default function Screen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const logoSource = require("../../assets/logo.png");
+  const brandColor = isDark ? "#B68A7B" : "#714E43";
 
   const handleLogin = async () => {
     setLoading(true);
@@ -122,25 +123,14 @@ export default function Screen() {
             style={[
               styles.primaryButton,
               {
-                backgroundColor: loading
-                  ? isDark
-                    ? "#3a3a3c"
-                    : "#d1d1d6"
-                  : isDark
-                  ? "#f5f5f5"
-                  : "#1c1c1e",
+                backgroundColor: loading ? (isDark ? "#3a3a3c" : "#d1d1d6") : brandColor,
               },
             ]}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={isDark ? "#111" : "#fff"} />
+              <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: isDark ? "#111" : "#fff" },
-                ]}
-              >
+              <Text style={[styles.primaryButtonText, { color: "#fff" }]}>
                 Entrar
               </Text>
             )}

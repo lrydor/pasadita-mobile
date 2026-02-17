@@ -24,6 +24,7 @@ type Profile = {
 export default function Screen() {
   const router = useRouter();
   const { isDark } = useTheme();
+  const brandColor = isDark ? "#B68A7B" : "#714E43";
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -208,17 +209,11 @@ export default function Screen() {
           style={[
             styles.primaryButton,
             {
-              backgroundColor: saving
-                ? isDark
-                  ? "#3a3a3c"
-                  : "#d1d1d6"
-                : isDark
-                ? "#f5f5f5"
-                : "#1c1c1e",
+              backgroundColor: saving ? (isDark ? "#3a3a3c" : "#d1d1d6") : brandColor,
             },
           ]}
         >
-          <Text style={[styles.primaryButtonText, { color: isDark ? "#111" : "#fff" }]}>
+          <Text style={[styles.primaryButtonText, { color: "#fff" }]}>
             {saving ? "Guardando..." : "Guardar cambios"}
           </Text>
         </Pressable>
