@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -10,7 +11,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import ScreenView from "../../components/ScreenView";
 import { useTheme } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
 
@@ -21,6 +21,8 @@ type Product = {
   price: number | null;
   image_url: string | null;
 };
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function Screen() {
   const { isDark } = useTheme();
@@ -36,6 +38,10 @@ export default function Screen() {
     accent: isDark ? "#B68A7B" : "#714E43",
     accentSoft: isDark ? "#2D2521" : "#EFE5E0",
     error: isDark ? "#FFB3B3" : "#B00020",
+    black: isDark ? "#F5F6F8" : "#1E232B",
+    ctaBg: isDark ? "#F5F6F8" : "#1E232B",
+    ctaText: isDark ? "#101216" : "#FFFFFF",
+    stepperBg: isDark ? "#2A313A" : "#F0EBE4",
   };
 
   const productId = useMemo(() => {
@@ -107,7 +113,9 @@ export default function Screen() {
 
     if (existing) {
       const currentQty =
-        typeof existing.quantity === "number" ? existing.quantity : Number(existing.quantity ?? 0);
+        typeof existing.quantity === "number"
+          ? existing.quantity
+          : Number(existing.quantity ?? 0);
       const { error } = await supabase
         .from("cart_items")
         .update({ quantity: currentQty + quantity })
@@ -135,91 +143,184 @@ export default function Screen() {
     setSaving(false);
   };
 
-  return (
-    <ScreenView style={[styles.container, { backgroundColor: palette.bg }]}> 
-      <View style={styles.handleWrap}>
-        <View style={[styles.handle, { backgroundColor: palette.border }]} />
-      </View>
+  const totalAmount = product?.price != null ? product.price * quantity : 0;
 
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: palette.text }]}>Detalle</Text>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="close" size={24} color={palette.text} />
+  if (loading) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.center,
+          { backgroundColor: palette.bg },
+        ]}
+      >
+        <ActivityIndicator size="small" color={palette.accent} />
+        <Text style={[styles.loadingText, { color: palette.textMuted }]}>
+          Cargando...
+        </Text>
+      </View>
+    );
+  }
+
+  if (errorMessage && !product) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.center,
+          { backgroundColor: palette.bg },
+        ]}
+      >
+        <Text style={[styles.errorText, { color: palette.error }]}>
+          {errorMessage}
+        </Text>
+        <Pressable onPress={() => router.back()} style={{ marginTop: 16 }}>
+          <Text style={[styles.backLink, { color: palette.accent }]}>
+            Volver
+          </Text>
         </Pressable>
       </View>
+    );
+  }
 
-      {loading ? (
-        <View style={styles.stateWrap}>
-          <ActivityIndicator size="small" color={palette.accent} />
-          <Text style={[styles.stateText, { color: palette.textMuted }]}>Cargando...</Text>
-        </View>
-      ) : null}
+  if (!product) return null;
 
-      {errorMessage ? (
-        <View style={styles.stateWrap}>
-          <Text style={[styles.errorText, { color: palette.error }]}>{errorMessage}</Text>
-        </View>
-      ) : null}
-      {successMessage ? (
-        <View style={styles.stateWrap}>
-          <Text style={[styles.successText, { color: palette.accent }]}>{successMessage}</Text>
-        </View>
-      ) : null}
+  return (
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
+      {/* Back button overlay */}
+      <Pressable
+        onPress={() => router.back()}
+        style={[styles.backBtn, { backgroundColor: palette.card }]}
+        hitSlop={10}
+      >
+        <Ionicons name="chevron-back" size={22} color={palette.text} />
+      </Pressable>
 
-      {product ? (
-        <ScrollView contentContainerStyle={styles.content}>
-          {product.image_url ? (
-            <Image source={{ uri: product.image_url }} style={styles.image} />
-          ) : (
-            <View
-              style={[
-                styles.imagePlaceholder,
-                { backgroundColor: palette.accentSoft, borderColor: palette.border },
-              ]}
-            >
-              <Ionicons name="restaurant-outline" size={24} color={palette.accent} />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Product Image */}
+        {product.image_url ? (
+          <Image source={{ uri: product.image_url }} style={styles.heroImage} />
+        ) : (
+          <View
+            style={[
+              styles.heroImagePlaceholder,
+              { backgroundColor: palette.accentSoft },
+            ]}
+          >
+            <Ionicons
+              name="restaurant-outline"
+              size={48}
+              color={palette.accent}
+            />
+          </View>
+        )}
+
+        {/* Product Info */}
+        <View style={styles.infoSection}>
+          <View style={styles.nameRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.productName, { color: palette.text }]}>
+                {product.name}
+              </Text>
+              <Text style={[styles.subtitle, { color: palette.textMuted }]}>
+                La Pasadita
+              </Text>
             </View>
-          )}
 
-          <Text style={[styles.name, { color: palette.text }]}>{product.name}</Text>
-
-          {product.description ? (
-            <Text style={[styles.description, { color: palette.textMuted }]}>{product.description}</Text>
-          ) : null}
-
-          <Text style={[styles.price, { color: palette.text }]}> 
-            {product.price != null ? `Q${product.price}` : "Q0.00"}
-          </Text>
-
-          <View style={styles.qtyRow}>
-            <Text style={[styles.qtyLabel, { color: palette.text }]}>Cantidad</Text>
+            {/* Quantity Stepper */}
             <View style={styles.stepper}>
               <Pressable
-                style={[styles.stepBtn, { backgroundColor: palette.card, borderColor: palette.border }]}
+                style={[styles.stepBtn, { backgroundColor: palette.stepperBg }]}
                 onPress={() => setQuantity((prev) => Math.max(1, prev - 1))}
               >
-                <Text style={[styles.stepBtnText, { color: palette.text }]}>-</Text>
+                <Ionicons name="remove" size={18} color={palette.text} />
               </Pressable>
-              <Text style={[styles.qtyValue, { color: palette.text }]}>{quantity}</Text>
+              <Text style={[styles.qtyValue, { color: palette.text }]}>
+                {quantity}
+              </Text>
               <Pressable
-                style={[styles.stepBtn, { backgroundColor: palette.card, borderColor: palette.border }]}
+                style={[styles.stepBtn, { backgroundColor: palette.ctaBg }]}
                 onPress={() => setQuantity((prev) => prev + 1)}
               >
-                <Text style={[styles.stepBtnText, { color: palette.text }]}>+</Text>
+                <Ionicons name="add" size={18} color={palette.ctaText} />
               </Pressable>
             </View>
           </View>
 
-          <Pressable
-            style={[styles.cta, { backgroundColor: palette.accent }]}
-            onPress={handleAddToCart}
-            disabled={saving}
-          >
-            <Text style={styles.ctaText}>{saving ? "Agregando..." : "Agregar al carrito"}</Text>
-          </Pressable>
-        </ScrollView>
-      ) : null}
-    </ScreenView>
+          {/* Info Badges */}
+          <View style={styles.badgesRow}>
+            <View style={styles.badge}>
+              <Ionicons name="star-outline" size={14} color={palette.accent} />
+              <Text style={[styles.badgeText, { color: palette.text }]}>
+                4.5
+              </Text>
+            </View>
+            <View style={[styles.badgeDivider, { backgroundColor: palette.border }]} />
+            <View style={styles.badge}>
+              <Ionicons name="time-outline" size={14} color={palette.accent} />
+              <Text style={[styles.badgeText, { color: palette.text }]}>
+                8-10 min
+              </Text>
+            </View>
+            <View style={[styles.badgeDivider, { backgroundColor: palette.border }]} />
+            <View style={styles.badge}>
+              <Ionicons name="flame-outline" size={14} color={palette.accent} />
+              <Text style={[styles.badgeText, { color: palette.text }]}>
+                124 Kcal
+              </Text>
+            </View>
+          </View>
+
+          {/* Description */}
+          {product.description ? (
+            <Text style={[styles.description, { color: palette.textMuted }]}>
+              {product.description}
+            </Text>
+          ) : null}
+
+          {/* Messages */}
+          {errorMessage ? (
+            <Text style={[styles.messageText, { color: palette.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
+          {successMessage ? (
+            <Text style={[styles.messageText, { color: palette.accent }]}>
+              {successMessage}
+            </Text>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {/* Bottom Bar */}
+      <View
+        style={[
+          styles.bottomBar,
+          { backgroundColor: palette.bg, borderTopColor: palette.border },
+        ]}
+      >
+        <View>
+          <Text style={[styles.totalLabel, { color: palette.textMuted }]}>
+            Total
+          </Text>
+          <Text style={[styles.totalAmount, { color: palette.text }]}>
+            Q{totalAmount.toFixed(2)}
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.ctaBtn, { backgroundColor: palette.ctaBg }]}
+          onPress={handleAddToCart}
+          disabled={saving}
+        >
+          <Text style={[styles.ctaText, { color: palette.ctaText }]}>
+            {saving ? "Agregando..." : "Agregar al carrito"}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -227,35 +328,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  handleWrap: {
+  center: {
     alignItems: "center",
-    paddingTop: 10,
+    justifyContent: "center",
   },
-  handle: {
-    width: 42,
-    height: 5,
-    borderRadius: 999,
-  },
-  header: {
-    paddingTop: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  stateWrap: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  stateText: {
+  loadingText: {
+    marginTop: 8,
     fontSize: 14,
     fontWeight: "500",
   },
@@ -263,72 +341,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  successText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  image: {
-    width: "100%",
-    height: 220,
-    borderRadius: 16,
-    marginBottom: 14,
-  },
-  imagePlaceholder: {
-    width: "100%",
-    height: 220,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-  description: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 20,
-  },
-  price: {
-    marginTop: 12,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  qtyRow: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  qtyLabel: {
+  backLink: {
     fontSize: 15,
     fontWeight: "600",
   },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+
+  /* Back button */
+  backBtn: {
+    position: "absolute",
+    top: 54,
+    left: 20,
+    zIndex: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+
+  /* Hero Image */
+  heroImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    resizeMode: "cover",
+  },
+  heroImagePlaceholder: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Info Section */
+  infoSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  productName: {
+    fontSize: 26,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  /* Stepper */
   stepper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
+    marginTop: 4,
   },
   stepBtn: {
     width: 34,
     height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-  },
-  stepBtnText: {
-    fontSize: 20,
-    fontWeight: "600",
-    lineHeight: 22,
   },
   qtyValue: {
     fontSize: 17,
@@ -336,15 +422,73 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: "center",
   },
-  cta: {
-    marginTop: 20,
-    borderRadius: 14,
-    paddingVertical: 14,
+
+  /* Badges */
+  badgesRow: {
+    flexDirection: "row",
     alignItems: "center",
+    marginTop: 16,
+    gap: 12,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  badgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  badgeDivider: {
+    width: 1,
+    height: 16,
+  },
+
+  /* Description */
+  description: {
+    marginTop: 20,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+
+  /* Messages */
+  messageText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  /* Bottom Bar */
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 34,
+    borderTopWidth: 1,
+  },
+  totalLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  totalAmount: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  ctaBtn: {
+    borderRadius: 16,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
   },
   ctaText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#fff",
   },
 });

@@ -42,7 +42,9 @@ export default function Screen() {
   const [busyItemId, setBusyItemId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"APP" | "CAJA">("APP");
+  const [paymentMethod, setPaymentMethod] = useState<"PAYPAL" | "CAJA">(
+    "PAYPAL",
+  );
 
   const palette = {
     bg: isDark ? "#101216" : "#F8F2EA",
@@ -83,7 +85,9 @@ export default function Screen() {
     }
 
     const cartRows = (data ?? []) as CartRow[];
-    const productIds = Array.from(new Set(cartRows.map((row) => row.product_id)));
+    const productIds = Array.from(
+      new Set(cartRows.map((row) => row.product_id)),
+    );
 
     const fallbackProducts = new Map<number, Product>();
     productIds.forEach((productId) => {
@@ -123,7 +127,7 @@ export default function Screen() {
   useFocusEffect(
     useCallback(() => {
       loadCart();
-    }, [])
+    }, []),
   );
 
   const updateQuantity = async (itemId: number, nextQuantity: number) => {
@@ -140,7 +144,9 @@ export default function Screen() {
       setErrorMessage(error.message);
     } else {
       setItems((prev) =>
-        prev.map((item) => (item.id === itemId ? { ...item, quantity: nextQuantity } : item))
+        prev.map((item) =>
+          item.id === itemId ? { ...item, quantity: nextQuantity } : item,
+        ),
       );
     }
 
@@ -151,7 +157,10 @@ export default function Screen() {
     setBusyItemId(itemId);
     setErrorMessage(null);
 
-    const { error } = await supabase.from("cart_items").delete().eq("id", itemId);
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("id", itemId);
 
     if (error) {
       setErrorMessage(error.message);
@@ -163,8 +172,12 @@ export default function Screen() {
   };
 
   const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + (item.product.price ?? 0) * item.quantity, 0),
-    [items]
+    () =>
+      items.reduce(
+        (sum, item) => sum + (item.product.price ?? 0) * item.quantity,
+        0,
+      ),
+    [items],
   );
 
   const serviceFee = 0;
@@ -178,16 +191,24 @@ export default function Screen() {
     <ScreenView style={[styles.container, { backgroundColor: palette.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: palette.text }]}>Carrito</Text>
-        <Text style={[styles.subtitle, { color: palette.textMuted }]}>Revisa tu pedido para recoger</Text>
+        <Text style={[styles.subtitle, { color: palette.textMuted }]}>
+          Revisa tu pedido para recoger
+        </Text>
 
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator size="small" color={palette.accent} />
-            <Text style={[styles.loadingText, { color: palette.textMuted }]}>Cargando carrito...</Text>
+            <Text style={[styles.loadingText, { color: palette.textMuted }]}>
+              Cargando carrito...
+            </Text>
           </View>
         ) : null}
 
-        {errorMessage ? <Text style={[styles.errorText, { color: palette.error }]}>{errorMessage}</Text> : null}
+        {errorMessage ? (
+          <Text style={[styles.errorText, { color: palette.error }]}>
+            {errorMessage}
+          </Text>
+        ) : null}
         {successMessage ? (
           <Text style={[styles.successText, { color: palette.accent }]}>
             {successMessage}
@@ -195,10 +216,19 @@ export default function Screen() {
         ) : null}
 
         {!loading && items.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: palette.card, borderColor: palette.border },
+            ]}
+          >
             <Ionicons name="cart-outline" size={24} color={palette.textMuted} />
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>Tu carrito esta vacio</Text>
-            <Text style={[styles.emptyText, { color: palette.textMuted }]}>Agrega productos desde Menu para continuar.</Text>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>
+              Tu carrito esta vacio
+            </Text>
+            <Text style={[styles.emptyText, { color: palette.textMuted }]}>
+              Agrega productos desde Menu para continuar.
+            </Text>
           </View>
         ) : null}
 
@@ -207,21 +237,44 @@ export default function Screen() {
           const busy = busyItemId === item.id;
 
           return (
-            <View key={item.id} style={[styles.itemCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
+            <View
+              key={item.id}
+              style={[
+                styles.itemCard,
+                { backgroundColor: palette.card, borderColor: palette.border },
+              ]}
+            >
               {item.product.image_url ? (
-                <Image source={{ uri: item.product.image_url }} style={styles.itemImage} />
+                <Image
+                  source={{ uri: item.product.image_url }}
+                  style={styles.itemImage}
+                />
               ) : (
-                <View style={[styles.itemImageFallback, { backgroundColor: palette.accentSoft }]}> 
-                  <Ionicons name="restaurant-outline" size={20} color={palette.accent} />
+                <View
+                  style={[
+                    styles.itemImageFallback,
+                    { backgroundColor: palette.accentSoft },
+                  ]}
+                >
+                  <Ionicons
+                    name="restaurant-outline"
+                    size={20}
+                    color={palette.accent}
+                  />
                 </View>
               )}
 
               <View style={styles.itemBody}>
-                <Text numberOfLines={1} style={[styles.itemName, { color: palette.text }]}> 
+                <Text
+                  numberOfLines={1}
+                  style={[styles.itemName, { color: palette.text }]}
+                >
                   {item.product.name}
                 </Text>
-                <Text style={[styles.itemPrice, { color: palette.textMuted }]}> 
-                  {item.product.price != null ? `Q${item.product.price}` : "Q0.00"}
+                <Text style={[styles.itemPrice, { color: palette.textMuted }]}>
+                  {item.product.price != null
+                    ? `Q${item.product.price}`
+                    : "Q0.00"}
                 </Text>
 
                 <View style={styles.itemFooter}>
@@ -229,72 +282,137 @@ export default function Screen() {
                     <Pressable
                       disabled={busy}
                       onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                      style={[styles.stepBtn, { borderColor: palette.border, backgroundColor: palette.bg }]}
+                      style={[
+                        styles.stepBtn,
+                        {
+                          borderColor: palette.border,
+                          backgroundColor: palette.bg,
+                        },
+                      ]}
                     >
-                      <Text style={[styles.stepBtnText, { color: palette.text }]}>-</Text>
+                      <Text
+                        style={[styles.stepBtnText, { color: palette.text }]}
+                      >
+                        -
+                      </Text>
                     </Pressable>
-                    <Text style={[styles.qtyText, { color: palette.text }]}>{item.quantity}</Text>
+                    <Text style={[styles.qtyText, { color: palette.text }]}>
+                      {item.quantity}
+                    </Text>
                     <Pressable
                       disabled={busy}
                       onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                      style={[styles.stepBtn, { borderColor: palette.border, backgroundColor: palette.bg }]}
+                      style={[
+                        styles.stepBtn,
+                        {
+                          borderColor: palette.border,
+                          backgroundColor: palette.bg,
+                        },
+                      ]}
                     >
-                      <Text style={[styles.stepBtnText, { color: palette.text }]}>+</Text>
+                      <Text
+                        style={[styles.stepBtnText, { color: palette.text }]}
+                      >
+                        +
+                      </Text>
                     </Pressable>
                   </View>
 
-                  <Pressable disabled={busy} onPress={() => removeItem(item.id)}>
-                    <Text style={[styles.removeText, { color: palette.error }]}>{busy ? "..." : "Quitar"}</Text>
+                  <Pressable
+                    disabled={busy}
+                    onPress={() => removeItem(item.id)}
+                  >
+                    <Text style={[styles.removeText, { color: palette.error }]}>
+                      {busy ? "..." : "Quitar"}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
 
-              <Text style={[styles.lineTotal, { color: palette.text }]}>Q{lineTotal.toFixed(2)}</Text>
+              <Text style={[styles.lineTotal, { color: palette.text }]}>
+                Q{lineTotal.toFixed(2)}
+              </Text>
             </View>
           );
         })}
 
-        <View style={[styles.summaryCard, { backgroundColor: palette.card, borderColor: palette.border }]}> 
-          <Text style={[styles.summaryTitle, { color: palette.text }]}>Detalle de orden</Text>
+        <View
+          style={[
+            styles.summaryCard,
+            { backgroundColor: palette.card, borderColor: palette.border },
+          ]}
+        >
+          <Text style={[styles.summaryTitle, { color: palette.text }]}>
+            Detalle de orden
+          </Text>
 
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: palette.textMuted }]}>Subtotal</Text>
-            <Text style={[styles.summaryValue, { color: palette.text }]}>Q{subtotal.toFixed(2)}</Text>
+            <Text style={[styles.summaryLabel, { color: palette.textMuted }]}>
+              Subtotal
+            </Text>
+            <Text style={[styles.summaryValue, { color: palette.text }]}>
+              Q{subtotal.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: palette.textMuted }]}>Servicio</Text>
-            <Text style={[styles.summaryValue, { color: palette.text }]}>Q{serviceFee.toFixed(2)}</Text>
+            <Text style={[styles.summaryLabel, { color: palette.textMuted }]}>
+              Servicio
+            </Text>
+            <Text style={[styles.summaryValue, { color: palette.text }]}>
+              Q{serviceFee.toFixed(2)}
+            </Text>
           </View>
           <View style={[styles.divider, { backgroundColor: palette.border }]} />
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryTotalLabel, { color: palette.text }]}>Total</Text>
-            <Text style={[styles.summaryTotalValue, { color: palette.text }]}>Q{total.toFixed(2)}</Text>
+            <Text style={[styles.summaryTotalLabel, { color: palette.text }]}>
+              Total
+            </Text>
+            <Text style={[styles.summaryTotalValue, { color: palette.text }]}>
+              Q{total.toFixed(2)}
+            </Text>
           </View>
 
-          <Text style={[styles.paymentTitle, { color: palette.text }]}>Metodo de pago</Text>
+          <Text style={[styles.paymentTitle, { color: palette.text }]}>
+            Metodo de pago
+          </Text>
           <View style={styles.paymentRow}>
             <Pressable
-              onPress={() => setPaymentMethod("APP")}
+              onPress={() => setPaymentMethod("PAYPAL")}
               style={[
                 styles.paymentOption,
                 {
-                  backgroundColor: paymentMethod === "APP" ? palette.accentSoft : palette.bg,
-                  borderColor: paymentMethod === "APP" ? palette.accent : palette.border,
+                  backgroundColor:
+                    paymentMethod === "PAYPAL"
+                      ? palette.accentSoft
+                      : palette.bg,
+                  borderColor:
+                    paymentMethod === "PAYPAL"
+                      ? palette.accent
+                      : palette.border,
                 },
               ]}
             >
               <Ionicons
-                name="card-outline"
+                name="logo-paypal"
                 size={14}
-                color={paymentMethod === "APP" ? palette.accent : palette.textMuted}
+                color={
+                  paymentMethod === "PAYPAL"
+                    ? palette.accent
+                    : palette.textMuted
+                }
               />
               <Text
                 style={[
                   styles.paymentText,
-                  { color: paymentMethod === "APP" ? palette.accent : palette.textMuted },
+                  {
+                    color:
+                      paymentMethod === "PAYPAL"
+                        ? palette.accent
+                        : palette.textMuted,
+                  },
                 ]}
               >
-                Pagar en app
+                Pagar con PayPal
               </Text>
             </Pressable>
             <Pressable
@@ -302,20 +420,29 @@ export default function Screen() {
               style={[
                 styles.paymentOption,
                 {
-                  backgroundColor: paymentMethod === "CAJA" ? palette.accentSoft : palette.bg,
-                  borderColor: paymentMethod === "CAJA" ? palette.accent : palette.border,
+                  backgroundColor:
+                    paymentMethod === "CAJA" ? palette.accentSoft : palette.bg,
+                  borderColor:
+                    paymentMethod === "CAJA" ? palette.accent : palette.border,
                 },
               ]}
             >
               <Ionicons
                 name="cash-outline"
                 size={14}
-                color={paymentMethod === "CAJA" ? palette.accent : palette.textMuted}
+                color={
+                  paymentMethod === "CAJA" ? palette.accent : palette.textMuted
+                }
               />
               <Text
                 style={[
                   styles.paymentText,
-                  { color: paymentMethod === "CAJA" ? palette.accent : palette.textMuted },
+                  {
+                    color:
+                      paymentMethod === "CAJA"
+                        ? palette.accent
+                        : palette.textMuted,
+                  },
                 ]}
               >
                 Pagar en caja
@@ -324,12 +451,13 @@ export default function Screen() {
           </View>
 
           <Pressable
-            onPress={() => router.push("/checkout")}
+            onPress={() => router.push(`/checkout?method=${paymentMethod}`)}
             disabled={items.length === 0}
             style={[
               styles.placeOrderBtn,
               {
-                backgroundColor: items.length === 0 ? palette.border : palette.accent,
+                backgroundColor:
+                  items.length === 0 ? palette.border : palette.accent,
               },
             ]}
           >

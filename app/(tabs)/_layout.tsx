@@ -30,7 +30,6 @@ export default function TabsLayout() {
         tabBarIcon: ({ color, size }) => {
           const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
             home: "home-outline",
-            menu: "restaurant-outline",
             cart: "cart-outline",
             orders: "receipt-outline",
             account: "person-circle-outline",
@@ -42,10 +41,10 @@ export default function TabsLayout() {
       })}
     >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="menu" options={{ title: "Menu" }} />
-      <Tabs.Screen name="cart" options={{ title: "Cart" }} />
-      <Tabs.Screen name="orders" options={{ title: "Orders" }} />
-      <Tabs.Screen name="account" options={{ title: "Account" }} />
+      <Tabs.Screen name="menu" options={{ href: null }} />
+      <Tabs.Screen name="cart" options={{ title: "Mi Orden" }} />
+      <Tabs.Screen name="orders" options={{ title: "Ordenes" }} />
+      <Tabs.Screen name="account" options={{ title: "Perfil" }} />
     </Tabs>
   );
 }
