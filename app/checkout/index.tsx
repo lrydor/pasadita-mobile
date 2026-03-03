@@ -12,6 +12,11 @@ import { Ionicons } from "@expo/vector-icons";
 import ScreenView from "../../components/ScreenView";
 import { useTheme } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
+import {
+  createPayPalOrder,
+  openPayPalApproval,
+  capturePayPalOrder,
+} from "../../lib/paypal";
 
 type CartRow = {
   id: number;
@@ -24,6 +29,9 @@ type Product = {
   name: string;
   price: number | null;
 };
+
+// Fixed exchange rate: 1 USD = 7.75 GTQ
+const GTQ_PER_USD = 7.75;
 
 export default function Screen() {
   const { isDark } = useTheme();
@@ -114,12 +122,66 @@ export default function Screen() {
 
   const fee = 0;
   const total = subtotal + fee;
+  const totalUsd = total / GTQ_PER_USD;
 
-  const createOrder = async () => {
+  // ─── PayPal flow ───
+  // 1. Create a PayPal order (calls our Edge Function)
+  // 2. Open PayPal's approval page in the browser
+  // 3. After user approves, capture the payment
+  // 4. If capture succeeds, create the local order in Supabase
+  const handlePayPal = async () => {
     if (rows.length === 0) return;
     setPaying(true);
     setErrorMessage(null);
 
+    try {
+      // Step 1: Create PayPal order with the total amount
+      const { id: paypalOrderId, approval_url } = await createPayPalOrder(
+        totalUsd.toFixed(2),
+        "USD",
+      );
+
+      // Step 2: Open the browser so user can approve/pay
+      const { token, cancelled } = await openPayPalApproval(approval_url);
+
+      if (cancelled || !token) {
+        setPaying(false);
+        return; // User closed the browser / cancelled
+      }
+
+      // Step 3: Capture the payment (actually charge the money)
+      await capturePayPalOrder(paypalOrderId);
+
+      // Step 4: Payment successful! Now create the local order in Supabase
+      await createLocalOrder();
+
+      setPaying(false);
+      router.replace("/checkout/success");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Error al procesar PayPal");
+      setPaying(false);
+    }
+  };
+
+  // ─── Cash (CAJA) flow ───
+  // Just creates the local order directly, no payment processing needed.
+  const handleCaja = async () => {
+    if (rows.length === 0) return;
+    setPaying(true);
+    setErrorMessage(null);
+
+    try {
+      await createLocalOrder();
+      setPaying(false);
+      router.replace("/checkout/success");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Error al crear orden");
+      setPaying(false);
+    }
+  };
+
+  // Shared helper: calls the Supabase RPC to move cart items into an order
+  const createLocalOrder = async () => {
     let rpcResult = await supabase.rpc("create_local_order");
 
     if (rpcResult.error) {
@@ -149,14 +211,11 @@ export default function Screen() {
     }
 
     if (rpcResult.error) {
-      setErrorMessage(rpcResult.error.message);
-      setPaying(false);
-      return;
+      throw new Error(rpcResult.error.message);
     }
-
-    setPaying(false);
-    router.replace("/checkout/success");
   };
+
+  const handlePay = paymentMethod === "PAYPAL" ? handlePayPal : handleCaja;
 
   if (!loading && !userId) {
     return <Redirect href="/(auth)/login" />;
@@ -264,13 +323,18 @@ export default function Screen() {
               Q{total.toFixed(2)}
             </Text>
           </View>
+          {paymentMethod === "PAYPAL" ? (
+            <Text style={[styles.summaryLabel, { color: palette.textMuted, textAlign: "right" }]}>
+              ~${totalUsd.toFixed(2)} USD
+            </Text>
+          ) : null}
         </View>
 
         {/* Pay Button */}
         {paymentMethod === "PAYPAL" ? (
           <Pressable
             disabled={paying || rows.length === 0}
-            onPress={createOrder}
+            onPress={handlePay}
             style={[
               styles.payButton,
               {
@@ -292,7 +356,7 @@ export default function Screen() {
         ) : (
           <Pressable
             disabled={paying || rows.length === 0}
-            onPress={createOrder}
+            onPress={handlePay}
             style={[
               styles.payButton,
               {

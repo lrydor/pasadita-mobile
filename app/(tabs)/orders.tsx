@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -55,6 +56,13 @@ function getStepIndex(status: string | null) {
   return 1; // PENDIENTE = still preparing
 }
 
+function getStatusHeadline(status: string | null) {
+  if (!status) return "Preparando tu pedido";
+  const s = status.toUpperCase();
+  if (s === "ENTREGADO") return "Pedido entregado";
+  return "Preparando tu pedido";
+}
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -78,6 +86,7 @@ export default function Screen() {
     new Map(),
   );
   const [loadingItems, setLoadingItems] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const palette = {
     bg: isDark ? "#101216" : "#F8F2EA",
@@ -133,6 +142,12 @@ export default function Screen() {
     }, []),
   );
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  }, []);
+
   const toggleExpand = async (orderId: number) => {
     if (expandedId === orderId) {
       setExpandedId(null);
@@ -177,6 +192,14 @@ export default function Screen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.accent}
+            colors={[palette.accent]}
+          />
+        }
       >
         <Text style={[styles.title, { color: palette.text }]}>Ordenes</Text>
         <Text style={[styles.subtitle, { color: palette.textMuted }]}>
@@ -238,7 +261,7 @@ export default function Screen() {
               <View style={styles.orderHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.orderNumber, { color: palette.text }]}>
-                    Orden #{order.id}
+                    {getStatusHeadline(order.status)}
                   </Text>
                   <Text
                     style={[styles.orderDate, { color: palette.textMuted }]}

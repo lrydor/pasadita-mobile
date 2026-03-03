@@ -2,6 +2,7 @@
   "expo": {
     "name": "pasadita-mobile",
     "slug": "pasadita-mobile",
+    "scheme": "pasadita",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -17,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-      "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -28,7 +29,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-web-browser"
     ]
   }
 }
