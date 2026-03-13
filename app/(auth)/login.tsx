@@ -10,8 +10,10 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
+import { signInWithGoogle } from "../../lib/google-auth";
 import ScreenView from "../../components/ScreenView";
 
 export default function Screen() {
@@ -20,6 +22,7 @@ export default function Screen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const logoSource = require("../../assets/logo.png");
   const brandColor = isDark ? "#B68A7B" : "#714E43";
@@ -38,6 +41,19 @@ export default function Screen() {
     }
     setLoading(false);
     router.replace("/(tabs)/home");
+  };
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      setErrorMessage(err.message ?? "Error con Google Sign-In");
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -139,6 +155,35 @@ export default function Screen() {
             <Text style={[styles.linkText, { color: isDark ? "#8e8e93" : "#6e6e73" }]}>
               Olvidaste tu contrasena?
             </Text>
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? "#2c2c2e" : "#e5e5ea" }]} />
+            <Text style={[styles.dividerText, { color: isDark ? "#8e8e93" : "#9aa0a6" }]}>o</Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? "#2c2c2e" : "#e5e5ea" }]} />
+          </View>
+
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
+            style={[
+              styles.googleButton,
+              {
+                borderColor: isDark ? "#2c2c2e" : "#e5e5ea",
+                backgroundColor: isDark ? "#1c1c1e" : "#fff",
+              },
+            ]}
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={isDark ? "#f5f5f5" : "#1c1c1e"} />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={18} color={isDark ? "#f5f5f5" : "#1c1c1e"} />
+                <Text style={[styles.googleButtonText, { color: isDark ? "#f5f5f5" : "#1c1c1e" }]}>
+                  Continuar con Google
+                </Text>
+              </>
+            )}
           </Pressable>
         </View>
         <View style={styles.footer}>
@@ -249,6 +294,33 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     marginTop: 6,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+  },
+  googleButtonText: {
     fontSize: 15,
     fontWeight: "600",
   },

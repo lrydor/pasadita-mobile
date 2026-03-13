@@ -125,6 +125,9 @@ export default function Screen() {
         setErrorMessage(error.message);
       } else {
         setSuccessMessage("Agregado al carrito.");
+        setSaving(false);
+        setTimeout(() => router.back(), 800);
+        return;
       }
     } else {
       const { error } = await supabase.from("cart_items").insert({
@@ -137,6 +140,9 @@ export default function Screen() {
         setErrorMessage(error.message);
       } else {
         setSuccessMessage("Agregado al carrito.");
+        setSaving(false);
+        setTimeout(() => router.back(), 800);
+        return;
       }
     }
 

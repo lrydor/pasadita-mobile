@@ -17,7 +17,7 @@ const RETURN_URL = Linking.createURL("checkout/paypal-return");
 const CANCEL_URL = Linking.createURL("checkout/paypal-cancel");
 
 type CreateOrderResult = {
-  id: string;           // PayPal order ID
+  id: string; // PayPal order ID
   approval_url: string; // URL to open in browser
 };
 
@@ -90,21 +90,38 @@ export async function openPayPalApproval(
 /**
  * Step 3: Capture the payment (actually charge the customer).
  * Call this after the user approved the payment on PayPal's page.
+ * Includes a small delay + retry because the app's network can be
+ * momentarily unavailable right after the browser session closes.
  */
 export async function capturePayPalOrder(
   orderId: string,
 ): Promise<CaptureResult> {
-  const { data, error } = await supabase.functions.invoke(
-    "paypal-capture-order",
-    {
-      body: { order_id: orderId },
-    },
-  );
+  // Brief pause to let the app re-establish after browser close
+  await new Promise((r) => setTimeout(r, 1500));
 
-  if (error) throw new Error(error.message);
-  if (data?.status !== "COMPLETED") {
-    throw new Error(data?.error || `Payment status: ${data?.status}`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase.functions.invoke(
+      "paypal-capture-order",
+      {
+        body: { order_id: orderId },
+      },
+    );
+
+    if (error) {
+      lastError = new Error(error.message);
+      // Wait before retrying
+      await new Promise((r) => setTimeout(r, 1000));
+      continue;
+    }
+
+    if (data?.status !== "COMPLETED") {
+      throw new Error(data?.error || `Payment status: ${data?.status}`);
+    }
+
+    return data as CaptureResult;
   }
 
-  return data as CaptureResult;
+  throw lastError!;
 }

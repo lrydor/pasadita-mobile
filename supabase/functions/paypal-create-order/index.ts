@@ -20,17 +20,14 @@ async function getPayPalAccessToken(): Promise<string> {
   // Base64-encode "clientId:secret" for HTTP Basic Auth
   const credentials = btoa(`${clientId}:${secret}`);
 
-  const res = await fetch(
-    "https://api-m.sandbox.paypal.com/v1/oauth2/token",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
+  const res = await fetch("https://api-m.sandbox.paypal.com/v1/oauth2/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-  );
+    body: "grant_type=client_credentials",
+  });
 
   const data = await res.json();
   if (!res.ok) {
@@ -50,10 +47,10 @@ Deno.serve(async (req) => {
     const { amount, currency, return_url, cancel_url } = await req.json();
 
     if (!amount) {
-      return new Response(
-        JSON.stringify({ error: "amount is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "amount is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Step 1: Get access token
@@ -98,8 +95,14 @@ Deno.serve(async (req) => {
 
     if (!orderRes.ok) {
       return new Response(
-        JSON.stringify({ error: "PayPal order creation failed", details: orderData }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({
+          error: "PayPal order creation failed",
+          details: orderData,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -113,16 +116,16 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        id: orderData.id,          // PayPal order ID (e.g. "5O190127TN364715T")
+        id: orderData.id, // PayPal order ID (e.g. "5O190127TN364715T")
         approval_url: approvalLink?.href || null,
-        status: orderData.status,  // Should be "PAYER_ACTION_REQUIRED"
+        status: orderData.status, // Should be "PAYER_ACTION_REQUIRED"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

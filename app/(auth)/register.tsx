@@ -1,10 +1,318 @@
-import { StyleSheet, Text } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../lib/theme";
+import { supabase } from "../../lib/supabase";
+import { signInWithGoogle } from "../../lib/google-auth";
 import ScreenView from "../../components/ScreenView";
 
 export default function Screen() {
+  const router = useRouter();
+  const { isDark } = useTheme();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const logoSource = require("../../assets/logo.png");
+  const brandColor = isDark ? "#B68A7B" : "#714E43";
+
+  const handleRegister = async () => {
+    setErrorMessage(null);
+
+    if (!name.trim()) {
+      setErrorMessage("Ingresa tu nombre completo");
+      return;
+    }
+    if (!email.trim()) {
+      setErrorMessage("Ingresa tu correo electronico");
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage("La contrasena debe tener al menos 6 caracteres");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMessage("Las contrasenas no coinciden");
+      return;
+    }
+
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { full_name: name.trim() },
+      },
+    });
+
+    if (error) {
+      setErrorMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    // Create profile row
+    const userId = data.user?.id;
+    if (userId) {
+      const nameParts = name.trim().split(/\s+/);
+      const firstName = nameParts[0] ?? "";
+      const lastName = nameParts.slice(1).join(" ") || null;
+
+      await supabase.from("profiles").upsert({
+        id: userId,
+        email: email.trim(),
+        first_name: firstName,
+        last_name: lastName,
+      });
+    }
+
+    setLoading(false);
+    router.replace("/(tabs)/home");
+  };
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      setErrorMessage(err.message ?? "Error con Google Sign-In");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
-    <ScreenView style={styles.container}>
-      <Text style={styles.title}>register</Text>
+    <ScreenView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0f0f0f" : "#f2f2f7" },
+      ]}
+    >
+      <View
+        style={[
+          styles.heroGlow,
+          { backgroundColor: isDark ? "#1f1f1f" : "#ffe6d5" },
+        ]}
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.brand}>
+          <Image source={logoSource} style={styles.logo} />
+          <Text style={[styles.title, { color: isDark ? "#f5f5f5" : "#111" }]}>
+            La Pasadita
+          </Text>
+          <Text
+            style={[styles.subtitle, { color: isDark ? "#9a9a9a" : "#636366" }]}
+          >
+            Antojitos chapines y desayunos sorpresa
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#1c1c1e" : "#fff",
+              borderColor: isDark ? "#2c2c2e" : "#e5e5ea",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: isDark ? "#f5f5f5" : "#1c1c1e" },
+            ]}
+          >
+            Crea tu cuenta
+          </Text>
+          {errorMessage ? (
+            <Text
+              style={[
+                styles.errorText,
+                { color: isDark ? "#ffb3b3" : "#b00020" },
+              ]}
+            >
+              {errorMessage}
+            </Text>
+          ) : null}
+          <TextInput
+            autoCapitalize="words"
+            autoCorrect={false}
+            placeholder="Nombre completo"
+            placeholderTextColor={isDark ? "#8e8e93" : "#9aa0a6"}
+            value={name}
+            onChangeText={setName}
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#f5f5f5" : "#1c1c1e",
+                backgroundColor: isDark ? "#2c2c2e" : "#f2f2f7",
+              },
+            ]}
+          />
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            placeholder="Correo"
+            placeholderTextColor={isDark ? "#8e8e93" : "#9aa0a6"}
+            value={email}
+            onChangeText={setEmail}
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#f5f5f5" : "#1c1c1e",
+                backgroundColor: isDark ? "#2c2c2e" : "#f2f2f7",
+              },
+            ]}
+          />
+          <TextInput
+            placeholder="Contrasena"
+            placeholderTextColor={isDark ? "#8e8e93" : "#9aa0a6"}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#f5f5f5" : "#1c1c1e",
+                backgroundColor: isDark ? "#2c2c2e" : "#f2f2f7",
+              },
+            ]}
+          />
+          <TextInput
+            placeholder="Confirmar contrasena"
+            placeholderTextColor={isDark ? "#8e8e93" : "#9aa0a6"}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#f5f5f5" : "#1c1c1e",
+                backgroundColor: isDark ? "#2c2c2e" : "#f2f2f7",
+              },
+            ]}
+          />
+          <Pressable
+            onPress={handleRegister}
+            disabled={loading}
+            style={[
+              styles.primaryButton,
+              {
+                backgroundColor: loading
+                  ? isDark
+                    ? "#3a3a3c"
+                    : "#d1d1d6"
+                  : brandColor,
+              },
+            ]}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={[styles.primaryButtonText, { color: "#fff" }]}>
+                Registrarse
+              </Text>
+            )}
+          </Pressable>
+
+          <View style={styles.dividerRow}>
+            <View
+              style={[
+                styles.dividerLine,
+                { backgroundColor: isDark ? "#2c2c2e" : "#e5e5ea" },
+              ]}
+            />
+            <Text
+              style={[
+                styles.dividerText,
+                { color: isDark ? "#8e8e93" : "#9aa0a6" },
+              ]}
+            >
+              o
+            </Text>
+            <View
+              style={[
+                styles.dividerLine,
+                { backgroundColor: isDark ? "#2c2c2e" : "#e5e5ea" },
+              ]}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading}
+            style={[
+              styles.googleButton,
+              {
+                borderColor: isDark ? "#2c2c2e" : "#e5e5ea",
+                backgroundColor: isDark ? "#1c1c1e" : "#fff",
+              },
+            ]}
+          >
+            {googleLoading ? (
+              <ActivityIndicator
+                size="small"
+                color={isDark ? "#f5f5f5" : "#1c1c1e"}
+              />
+            ) : (
+              <>
+                <Ionicons
+                  name="logo-google"
+                  size={18}
+                  color={isDark ? "#f5f5f5" : "#1c1c1e"}
+                />
+                <Text
+                  style={[
+                    styles.googleButtonText,
+                    { color: isDark ? "#f5f5f5" : "#1c1c1e" },
+                  ]}
+                >
+                  Continuar con Google
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+        <View style={styles.footer}>
+          <Text
+            style={[
+              styles.footerText,
+              { color: isDark ? "#8e8e93" : "#6e6e73" },
+            ]}
+          >
+            Ya tienes cuenta?
+          </Text>
+          <Pressable onPress={() => router.push("/(auth)/login")}>
+            <Text
+              style={[
+                styles.footerLink,
+                { color: isDark ? "#f5f5f5" : "#1c1c1e" },
+              ]}
+            >
+              Inicia sesion
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </ScreenView>
   );
 }
@@ -12,13 +320,118 @@ export default function Screen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+  },
+  heroGlow: {
+    position: "absolute",
+    top: -120,
+    left: -80,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    opacity: 0.6,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 32,
+  },
+  brand: {
     alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 28,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+    borderRadius: 60,
   },
   title: {
-    fontSize: 24,
+    fontSize: 30,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    marginTop: 6,
+  },
+  card: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
     fontWeight: "600",
-    textTransform: "capitalize",
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  input: {
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  primaryButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  primaryButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  footerText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  footerLink: {
+    marginTop: 6,
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

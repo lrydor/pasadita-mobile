@@ -13,17 +13,14 @@ async function getPayPalAccessToken(): Promise<string> {
   const secret = Deno.env.get("PAYPAL_SECRET")!;
   const credentials = btoa(`${clientId}:${secret}`);
 
-  const res = await fetch(
-    "https://api-m.sandbox.paypal.com/v1/oauth2/token",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
+  const res = await fetch("https://api-m.sandbox.paypal.com/v1/oauth2/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-  );
+    body: "grant_type=client_credentials",
+  });
 
   const data = await res.json();
   if (!res.ok) {
@@ -42,10 +39,10 @@ Deno.serve(async (req) => {
     const { order_id } = await req.json();
 
     if (!order_id) {
-      return new Response(
-        JSON.stringify({ error: "order_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "order_id is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const accessToken = await getPayPalAccessToken();
@@ -68,7 +65,10 @@ Deno.serve(async (req) => {
     if (!captureRes.ok) {
       return new Response(
         JSON.stringify({ error: "Capture failed", details: captureData }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -77,14 +77,14 @@ Deno.serve(async (req) => {
       JSON.stringify({
         id: captureData.id,
         status: captureData.status,
-        payer: captureData.payer,  // Info about who paid
+        payer: captureData.payer, // Info about who paid
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
