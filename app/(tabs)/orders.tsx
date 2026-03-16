@@ -4,6 +4,7 @@ import {
   Image,
   Pressable,
   RefreshControl,
+  Switch,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,6 +30,24 @@ type OrderItem = {
   product_name: string;
   product_price: number | null;
   product_image: string | null;
+};
+
+type ProductAdmin = {
+  id: number;
+  name: string;
+  price: number | null;
+  image_url: string | null;
+  available: boolean | null;
+};
+
+type AdminStats = {
+  totalOrders: number;
+  totalRevenue: number;
+  ordersToday: number;
+  pending: number;
+  preparing: number;
+  ready: number;
+  delivered: number;
 };
 
 const STEPS = [
@@ -75,6 +94,48 @@ function formatDate(dateStr: string | null) {
   });
 }
 
+function computeAdminStats(orders: Order[]): AdminStats {
+  const today = new Date();
+  const todayKey = today.toISOString().slice(0, 10);
+
+  return orders.reduce<AdminStats>(
+    (acc, order) => {
+      acc.totalOrders += 1;
+      acc.totalRevenue += order.total ?? 0;
+
+      if (order.created_at) {
+        const key = new Date(order.created_at).toISOString().slice(0, 10);
+        if (key === todayKey) {
+          acc.ordersToday += 1;
+        }
+      }
+
+      const status = (order.status ?? "PENDIENTE").toUpperCase();
+
+      if (status === "ENTREGADO") {
+        acc.delivered += 1;
+      } else if (status === "LISTO") {
+        acc.ready += 1;
+      } else if (status === "PREPARANDO") {
+        acc.preparing += 1;
+      } else {
+        acc.pending += 1;
+      }
+
+      return acc;
+    },
+    {
+      totalOrders: 0,
+      totalRevenue: 0,
+      ordersToday: 0,
+      pending: 0,
+      preparing: 0,
+      ready: 0,
+      delivered: 0,
+    },
+  );
+}
+
 export default function Screen() {
   const { isDark } = useTheme();
   const [userId, setUserId] = useState<string | null>(null);
@@ -87,6 +148,13 @@ export default function Screen() {
   );
   const [loadingItems, setLoadingItems] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  const [adminProducts, setAdminProducts] = useState<ProductAdmin[]>([]);
+  const [updatingProductId, setUpdatingProductId] = useState<number | null>(
+    null,
+  );
+  const [productsSectionExpanded, setProductsSectionExpanded] = useState(false);
 
   const palette = {
     bg: isDark ? "#101216" : "#F8F2EA",
@@ -105,6 +173,7 @@ export default function Screen() {
   const loadOrders = async () => {
     setLoading(true);
     setErrorMessage(null);
+    setAdminStats(null);
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
@@ -116,17 +185,43 @@ export default function Screen() {
 
     setUserId(userData.user.id);
 
-    const { data, error } = await supabase
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    const currentRole =
+      (profile?.role as string | null | undefined) ?? null;
+    setRole(currentRole);
+
+    let query = supabase
       .from("orders")
-      .select("id, status, payment_method, total, created_at")
-      .eq("user_id", userData.user.id)
-      .order("created_at", { ascending: false });
+      .select("id, status, payment_method, total, created_at");
+
+    if (currentRole !== "admin") {
+      query = query.eq("user_id", userData.user.id);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       setErrorMessage(error.message);
       setOrders([]);
     } else {
       setOrders((data ?? []) as Order[]);
+
+      if (currentRole === "admin" && data) {
+        setAdminStats(computeAdminStats(data as Order[]));
+
+        const { data: productsData } = await supabase
+          .from("products")
+          .select("id, name, price, image_url, available")
+          .order("name", { ascending: true });
+        setAdminProducts((productsData ?? []) as ProductAdmin[]);
+      }
     }
 
     setLoading(false);
@@ -147,6 +242,28 @@ export default function Screen() {
     await loadOrders();
     setRefreshing(false);
   }, []);
+
+  const toggleProductAvailability = async (
+    productId: number,
+    nextValue: boolean,
+  ) => {
+    setUpdatingProductId(productId);
+
+    const { error } = await supabase
+      .from("products")
+      .update({ available: nextValue })
+      .eq("id", productId);
+
+    if (!error) {
+      setAdminProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, available: nextValue } : p,
+        ),
+      );
+    }
+
+    setUpdatingProductId(null);
+  };
 
   const toggleExpand = async (orderId: number) => {
     if (expandedId === orderId) {
@@ -201,10 +318,219 @@ export default function Screen() {
           />
         }
       >
-        <Text style={[styles.title, { color: palette.text }]}>Ordenes</Text>
-        <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-          Sigue el estado de tus pedidos
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: palette.text }]}>
+              {role === "admin" ? "Dashboard de órdenes" : "Ordenes"}
+            </Text>
+            <Text style={[styles.subtitle, { color: palette.textMuted }]}>
+              {role === "admin"
+                ? "Resumen de pedidos y estados del restaurante"
+                : "Sigue el estado de tus pedidos"}
+            </Text>
+          </View>
+          {role === "admin" ? (
+            <View
+              style={[
+                styles.adminBadge,
+                { backgroundColor: palette.accentSoft, borderColor: palette.border },
+              ]}
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={14}
+                color={palette.accent}
+              />
+              <Text style={[styles.adminBadgeText, { color: palette.accent }]}>
+                Admin
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {role === "admin" && adminStats ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.adminCarousel}
+          >
+            <View
+              style={[
+                styles.adminCard,
+                styles.adminCardPrimary,
+                { backgroundColor: palette.accentSoft },
+              ]}
+            >
+              <Text style={[styles.adminLabel, { color: palette.textMuted }]}>
+                Órdenes totales
+              </Text>
+              <Text style={[styles.adminValue, { color: palette.text }]}>
+                {adminStats.totalOrders}
+              </Text>
+              <Text style={[styles.adminSub, { color: palette.textMuted }]}>
+                Hoy: {adminStats.ordersToday}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.adminCard,
+                { backgroundColor: palette.greenSoft },
+              ]}
+            >
+              <Text style={[styles.adminLabel, { color: palette.textMuted }]}>
+                Ingreso total
+              </Text>
+              <Text style={[styles.adminValue, { color: palette.green }]}>
+                Q{adminStats.totalRevenue.toFixed(2)}
+              </Text>
+              <Text style={[styles.adminSub, { color: palette.textMuted }]}>
+                Ticket prom.:{" "}
+                {adminStats.totalOrders > 0
+                  ? `Q${(adminStats.totalRevenue / adminStats.totalOrders).toFixed(2)}`
+                  : "Q0.00"}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.adminCard,
+                { backgroundColor: palette.card },
+              ]}
+            >
+              <Text style={[styles.adminLabel, { color: palette.textMuted }]}>
+                Pendientes
+              </Text>
+              <Text style={[styles.adminValue, { color: palette.text }]}>
+                {adminStats.pending}
+              </Text>
+              <Text style={[styles.adminSub, { color: palette.textMuted }]}>
+                Preparando: {adminStats.preparing}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.adminCard,
+                { backgroundColor: palette.card },
+              ]}
+            >
+              <Text style={[styles.adminLabel, { color: palette.textMuted }]}>
+                Listas / entregadas
+              </Text>
+              <Text style={[styles.adminValue, { color: palette.text }]}>
+                {adminStats.ready + adminStats.delivered}
+              </Text>
+              <Text style={[styles.adminSub, { color: palette.textMuted }]}>
+                Entregadas: {adminStats.delivered}
+              </Text>
+            </View>
+          </ScrollView>
+        ) : null}
+
+        {role === "admin" && adminProducts.length > 0 ? (
+          <View style={styles.adminProductsSection}>
+            <Pressable
+              onPress={() =>
+                setProductsSectionExpanded((prev) => !prev)
+              }
+              style={[
+                styles.productsSectionHeader,
+                { borderColor: palette.border, backgroundColor: palette.card },
+              ]}
+            >
+              <View>
+                <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                  Gestión de productos
+                </Text>
+                <Text
+                  style={[styles.sectionSubtitle, { color: palette.textMuted }]}
+                >
+                  Marca qué platos están disponibles hoy en el menú.
+                </Text>
+              </View>
+              <Ionicons
+                name={
+                  productsSectionExpanded ? "chevron-up" : "chevron-down"
+                }
+                size={22}
+                color={palette.textMuted}
+              />
+            </Pressable>
+            {productsSectionExpanded
+              ? adminProducts.map((product) => (
+              <View
+                key={product.id}
+                style={[
+                  styles.productRow,
+                  { borderColor: palette.border, backgroundColor: palette.card },
+                ]}
+              >
+                <View style={styles.productInfo}>
+                  {product.image_url ? (
+                    <Image
+                      source={{ uri: product.image_url }}
+                      style={styles.productThumb}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.productThumbFallback,
+                        { backgroundColor: palette.accentSoft },
+                      ]}
+                    >
+                      <Ionicons
+                        name="restaurant-outline"
+                        size={16}
+                        color={palette.accent}
+                      />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.productNameAdmin, { color: palette.text }]}
+                    >
+                      {product.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.productMetaAdmin,
+                        { color: palette.textMuted },
+                      ]}
+                    >
+                      {product.price != null
+                        ? `Q${product.price.toFixed(2)}`
+                        : "Sin precio"}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.productToggle}>
+                  <Text
+                    style={[
+                      styles.toggleLabel,
+                      { color: palette.textMuted },
+                    ]}
+                  >
+                    {product.available === false ? "Oculto" : "Visible"}
+                  </Text>
+                  <Switch
+                    value={product.available !== false}
+                    onValueChange={(value) =>
+                      toggleProductAvailability(product.id, value)
+                    }
+                    thumbColor={
+                      product.available === false ? "#ccc" : palette.addBtnText
+                    }
+                    trackColor={{
+                      false: palette.lineMuted,
+                      true: palette.accent,
+                    }}
+                    disabled={updatingProductId === product.id}
+                  />
+                </View>
+              </View>
+            ))
+              : null}
+          </View>
+        ) : null}
 
         {loading ? (
           <View style={styles.loadingRow}>
@@ -369,22 +695,24 @@ export default function Screen() {
                 </View>
               </View>
 
-              {/* Items in order - expandable */}
-              <Pressable
-                onPress={() => toggleExpand(order.id)}
-                style={[styles.itemsToggle, { borderTopColor: palette.border }]}
-              >
-                <Text style={[styles.itemsTitle, { color: palette.text }]}>
-                  Items en orden
-                </Text>
-                <Ionicons
-                  name={isExpanded ? "chevron-up" : "chevron-forward"}
-                  size={20}
-                  color={palette.textMuted}
-                />
-              </Pressable>
+              {/* Items en orden - expandable solo si está entregado */}
+              {isDelivered ? (
+                <>
+                  <Pressable
+                    onPress={() => toggleExpand(order.id)}
+                    style={[styles.itemsToggle, { borderTopColor: palette.border }]}
+                  >
+                    <Text style={[styles.itemsTitle, { color: palette.text }]}>
+                      Items en orden
+                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-forward"}
+                      size={20}
+                      color={palette.textMuted}
+                    />
+                  </Pressable>
 
-              {isExpanded ? (
+                  {isExpanded ? (
                 <View style={styles.itemsList}>
                   {isLoadingThisOrder ? (
                     <View style={styles.loadingRow}>
@@ -464,6 +792,8 @@ export default function Screen() {
                   ) : null}
                 </View>
               ) : null}
+                </>
+              ) : null}
             </View>
           );
         })}
@@ -490,6 +820,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     fontWeight: "500",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
 
   /* Loading / Error */
@@ -672,5 +1008,121 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     paddingVertical: 8,
+  },
+  adminCarousel: {
+    paddingVertical: 16,
+    paddingRight: 20,
+    gap: 12,
+  },
+  adminCard: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  adminCardPrimary: {
+    minWidth: 180,
+  },
+  adminLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  adminValue: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  adminSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  adminBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  adminProductsSection: {
+    marginTop: 24,
+    gap: 10,
+  },
+  productsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  productRow: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  productInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  productThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+  },
+  productThumbFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  productNameAdmin: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  productMetaAdmin: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  productToggle: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  toggleLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
 });
