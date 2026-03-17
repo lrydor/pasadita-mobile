@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/theme";
 import { supabase } from "../../lib/supabase";
@@ -38,58 +38,87 @@ export default function Screen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const loadAccount = async () => {
-      setLoading(true);
-      setErrorMessage(null);
+  const loadAccount = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        setUserId(null);
-        setProfile(null);
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      const userId = userData.user.id;
-      setUserId(userId);
-      const [profileResult, ordersResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, email, first_name, last_name")
-          .eq("id", userId)
-          .maybeSingle(),
-        supabase
-          .from("orders")
-          .select("id, status, payment_method, total, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(3),
-      ]);
-
-      if (profileResult.error) {
-        setErrorMessage(profileResult.error.message);
-      } else {
-        setProfile(profileResult.data ?? null);
-      }
-
-      if (ordersResult.error) {
-        setErrorMessage(ordersResult.error.message);
-        setOrders([]);
-      } else {
-        setOrders(ordersResult.data ?? []);
-      }
-
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) {
+      setUserId(null);
+      setProfile(null);
+      setAuthEmail(null);
+      setOrders([]);
       setLoading(false);
-    };
+      return;
+    }
 
-    loadAccount();
+    const uid = userData.user.id;
+    const email = userData.user.email ?? null;
+    setUserId(uid);
+    setAuthEmail(email);
+
+    const [profileResult, ordersResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name")
+        .eq("id", uid)
+        .maybeSingle(),
+      supabase
+        .from("orders")
+        .select("id, status, payment_method, total, created_at")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(3),
+    ]);
+
+    if (profileResult.error) {
+      setErrorMessage(profileResult.error.message);
+    } else {
+      let prof = profileResult.data ?? null;
+      if (!prof && email) {
+        const { data: created } = await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: uid,
+              email,
+              first_name: null,
+              last_name: null,
+              role: "customer",
+            },
+            { onConflict: "id" }
+          )
+          .select()
+          .maybeSingle();
+        prof = created ?? null;
+      }
+      setProfile(prof);
+    }
+
+    if (ordersResult.error) {
+      setErrorMessage(ordersResult.error.message);
+      setOrders([]);
+    } else {
+      setOrders(ordersResult.data ?? []);
+    }
+
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadAccount();
+  }, [loadAccount]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAccount();
+    }, [loadAccount])
+  );
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -100,6 +129,7 @@ export default function Screen() {
     } else {
       setUserId(null);
       setProfile(null);
+      setAuthEmail(null);
       setOrders([]);
     }
     setSigningOut(false);
@@ -197,6 +227,8 @@ export default function Screen() {
             {profile
               ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() ||
                 "Sin nombre"
+              : authEmail
+              ? "Usuario"
               : "Invitado"}
           </Text>
         </View>
@@ -221,7 +253,7 @@ export default function Screen() {
           <Text
             style={[styles.valueText, { color: isDark ? "#9a9a9a" : "#6e6e73" }]}
           >
-            {profile?.email ?? "No has iniciado sesión"}
+            {profile?.email ?? authEmail ?? "No has iniciado sesión"}
           </Text>
         </View>
         <View

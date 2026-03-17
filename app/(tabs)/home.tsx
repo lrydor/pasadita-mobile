@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -60,6 +61,7 @@ type Product = {
   description: string | null;
   price: number | null;
   image_url: string | null;
+  available?: boolean | null;
 };
 
 const getCategory = (name: string) => {
@@ -89,7 +91,9 @@ export default function Screen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("Todo");
   const [activeSlide, setActiveSlide] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const bannerRef = useRef<FlatList<BannerSlide>>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -122,35 +126,36 @@ export default function Screen() {
     accent: isDark ? "#B68A7B" : "#714E43",
     accentSoft: isDark ? "#2D2521" : "#EFE5E0",
     error: isDark ? "#FFB3B3" : "#B00020",
-    promoBg: isDark ? "#2D2521" : "#EFE5E0",
-    promoText: isDark ? "#B68A7B" : "#714E43",
+    promoBg: isDark ? "#3A2620" : "#FFE0C2",
+    promoText: isDark ? "#FFD0A6" : "#9C3B00",
     black: isDark ? "#F5F6F8" : "#1E232B",
     addBtn: isDark ? "#F5F6F8" : "#1E232B",
     addBtnText: isDark ? "#101216" : "#FFFFFF",
   };
 
-  useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true);
-      setErrorMessage(null);
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, name, description, price, image_url")
-        .order("name", { ascending: true });
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, description, price, image_url, available")
+      .eq("available", true)
+      .order("name", { ascending: true });
 
-      if (error) {
-        setErrorMessage(error.message);
-        setProducts([]);
-      } else {
-        setProducts((data ?? []) as Product[]);
-      }
+    if (error) {
+      setErrorMessage(error.message);
+      setProducts([]);
+    } else {
+      setProducts((data ?? []) as Product[]);
+    }
 
-      setLoading(false);
-    };
-
-    loadProducts();
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const categories = useMemo(() => {
     const set = new Set(products.map((product) => getCategory(product.name)));
@@ -180,6 +185,12 @@ export default function Screen() {
     () => filteredProducts.slice(6),
     [filteredProducts],
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadProducts();
+    setRefreshing(false);
+  }, [loadProducts]);
 
   const renderProductCard = (item: Product) => (
     <Pressable
@@ -223,11 +234,31 @@ export default function Screen() {
     </Pressable>
   );
 
+  const handleVerTodo = useCallback(() => {
+    setSelectedCategory("Todo");
+    setTimeout(
+      () =>
+        scrollRef.current?.scrollToEnd({
+          animated: true,
+        }),
+      100,
+    );
+  }, []);
+
   return (
     <ScreenView style={[styles.container, { backgroundColor: palette.bg }]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.accent}
+            colors={[palette.accent]}
+          />
+        }
       >
         {/* Header */}
         <View style={styles.headerRow}>
@@ -386,7 +417,7 @@ export default function Screen() {
               <Text style={[styles.sectionTitle, { color: palette.text }]}>
                 Lo mas pedido
               </Text>
-              <Pressable onPress={() => setSelectedCategory("Todo")}>
+              <Pressable onPress={handleVerTodo}>
                 <Text style={[styles.viewAll, { color: palette.accent }]}>
                   Ver todo
                 </Text>

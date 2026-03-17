@@ -20,6 +20,7 @@ type Product = {
   description: string | null;
   price: number | null;
   image_url: string | null;
+  available?: boolean | null;
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -69,7 +70,7 @@ export default function Screen() {
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, description, price, image_url")
+        .select("id, name, description, price, image_url, available")
         .eq("id", productId)
         .maybeSingle();
 
@@ -150,6 +151,8 @@ export default function Screen() {
   };
 
   const totalAmount = product?.price != null ? product.price * quantity : 0;
+
+  const isUnavailable = product?.available === false;
 
   if (loading) {
     return (
@@ -232,7 +235,7 @@ export default function Screen() {
                 {product.name}
               </Text>
               <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-                La Pasadita
+                {isUnavailable ? "No disponible actualmente" : "La Pasadita"}
               </Text>
             </View>
 
@@ -317,12 +320,19 @@ export default function Screen() {
           </Text>
         </View>
         <Pressable
-          style={[styles.ctaBtn, { backgroundColor: palette.ctaBg }]}
+          style={[
+            styles.ctaBtn,
+            { backgroundColor: isUnavailable ? palette.stepperBg : palette.ctaBg },
+          ]}
           onPress={handleAddToCart}
-          disabled={saving}
+          disabled={saving || isUnavailable}
         >
           <Text style={[styles.ctaText, { color: palette.ctaText }]}>
-            {saving ? "Agregando..." : "Agregar al carrito"}
+            {isUnavailable
+              ? "Producto no disponible"
+              : saving
+              ? "Agregando..."
+              : "Agregar al carrito"}
           </Text>
         </Pressable>
       </View>
