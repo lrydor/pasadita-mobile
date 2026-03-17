@@ -2,6 +2,9 @@
   "expo": {
     "name": "pasadita-mobile",
     "slug": "pasadita-mobile",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "scheme": "pasadita",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,7 +17,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dorransorganization.pasaditamobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,11 +29,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dorransorganization.pasaditamobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-web-browser"]
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-web-browser",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d2e9580e-0b77-451b-8345-9bbe6d025c09"
+      }
+    },
+    "owner": "dorrans-organization"
   }
 }
